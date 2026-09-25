@@ -1,0 +1,8 @@
+local.properties
+.gradle/
+**/build/
+server/__pycache__/
+artifacts/*.zip
+artifacts/*.apk
+artifacts/CHECKSUMS.txt
+artifacts/apk-sha256.txt
