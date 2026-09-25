@@ -17,6 +17,7 @@ data class GatewaySnapshot(
     val dataTunnel: LinkState = LinkState.STOPPED,
     val control: LinkState = LinkState.STOPPED,
     val vpn: LinkState = LinkState.STOPPED,
+    val controlLatencyMs: Long = 0,
     val wifiRx: Long = 0,
     val wifiTx: Long = 0,
     val tunnelRx: Long = 0,
@@ -43,6 +44,7 @@ object GatewayController {
     @Volatile private var tunnel = LinkState.STOPPED
     @Volatile private var control = LinkState.STOPPED
     @Volatile private var vpn = LinkState.STOPPED
+    @Volatile private var controlLatencyMs = 0L
     @Volatile private var activeClients = 0
     @Volatile private var activeTunnels = 0
     @Volatile private var proxyPort = 8080
@@ -52,7 +54,7 @@ object GatewayController {
     fun reset(port: Int) {
         wifiRx.set(0); wifiTx.set(0); tunnelRx.set(0); tunnelTx.set(0); vpnRx.set(0)
         gateway = LinkState.STARTING; client = LinkState.STOPPED; tunnel = LinkState.READY
-        control = LinkState.STOPPED; vpn = LinkState.STOPPED; activeClients = 0; activeTunnels = 0; proxyPort = port; error = null
+        control = LinkState.STOPPED; vpn = LinkState.STOPPED; controlLatencyMs = 0L; activeClients = 0; activeTunnels = 0; proxyPort = port; error = null
         event("Gateway service is starting on TCP port $port")
         publish()
     }
@@ -102,6 +104,8 @@ object GatewayController {
         publish()
     }
 
+    fun setControlLatency(valueMs: Long) { controlLatencyMs = valueMs; publish() }
+
     fun clientOpened(peer: String) {
         activeClients += 1
         client = LinkState.CONNECTED
@@ -136,6 +140,7 @@ object GatewayController {
         dataTunnel = tunnel,
         control = control,
         vpn = vpn,
+        controlLatencyMs = controlLatencyMs,
         wifiRx = wifiRx.get(),
         wifiTx = wifiTx.get(),
         tunnelRx = tunnelRx.get(),
@@ -154,7 +159,7 @@ object GatewayController {
     private fun publish() { listeners.forEach { it(snapshotOrNull()) } }
     private fun snapshotOrNull(): GatewaySnapshot = GatewaySnapshot(
         gateway = gateway, wifi = "Refresh screen for network state", client = client, dataTunnel = tunnel,
-        control = control, vpn = vpn, wifiRx = wifiRx.get(), wifiTx = wifiTx.get(), tunnelRx = tunnelRx.get(),
+        control = control, vpn = vpn, controlLatencyMs = controlLatencyMs, wifiRx = wifiRx.get(), wifiTx = wifiTx.get(), tunnelRx = tunnelRx.get(),
         tunnelTx = tunnelTx.get(), vpnRx = vpnRx.get(), activeClients = activeClients, proxyPort = proxyPort, localHotspot = localHotspot,
         lastError = error
     )

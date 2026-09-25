@@ -35,8 +35,10 @@ class ControlChannel(private val context: Context, private val host: String, pri
                     var sequence = 1
                     while (running.get()) {
                         val ping = "PING $sequence\\n"
+                        val startedAt = System.nanoTime()
                         output.write(ping.toByteArray()); output.flush()
                         if (readLine(input) != "ACK $sequence") throw IOException("Unexpected control ACK")
+                        GatewayController.setControlLatency((System.nanoTime() - startedAt) / 1_000_000L)
                         GatewayController.event("Control ACK $sequence")
                         sequence += 1
                         Thread.sleep(5_000)

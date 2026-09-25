@@ -23,6 +23,7 @@ class MainActivity : Activity() {
     private lateinit var startButton: Button
     private lateinit var hotspot: LocalHotspotController
     private var control: ControlChannel? = null
+    private var lastRenderedTraffic = 0L
     private val listener: (GatewaySnapshot) -> Unit = { runOnUiThread { render() } }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -61,6 +62,7 @@ class MainActivity : Activity() {
         vpnRow.addView(Button(this).apply { text = "Start TUN diagnostic"; setOnClickListener { startTunDiagnostic() } }, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
         vpnRow.addView(Button(this).apply { text = "Stop TUN"; setOnClickListener { stopTunDiagnostic() } }, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
         root.addView(vpnRow)
+        root.addView(Button(this).apply { text = "Run real Gateway → Server 1 MiB test"; setOnClickListener { runGatewaySelfTest() } })
         root.addView(title("Gateway Status", 19))
         status = TextView(this).apply { setTextColor(Color.rgb(28, 28, 28)); textSize = 14f; setPadding(0, dp(8), 0, dp(8)); typeface = android.graphics.Typeface.MONOSPACE }
         root.addView(status)
@@ -99,7 +101,10 @@ class MainActivity : Activity() {
         val addresses = GatewayController.localIpv4Addresses().ifEmpty { listOf("No IPv4 address detected") }.joinToString(", ")
         val wifiManager = getSystemService(WifiManager::class.java)
         val concurrency = if (android.os.Build.VERSION.SDK_INT >= 30) wifiManager?.isStaApConcurrencySupported?.toString() ?: "UNKNOWN" else "API<30"
-        status.text = "Gateway:        ${s.gateway}\\nWi-Fi:          ${s.wifi}\\nSTA+AP support: $concurrency\\nClient:         ${s.client} (${s.activeClients} active)\\nData Tunnel:    ${s.dataTunnel}\\nControl:        ${s.control}\\nVPN/TUN:        ${s.vpn}\\nLocal Hotspot:  ${s.localHotspot}\\nProxy listener: 0.0.0.0:${s.proxyPort}\\nPhone IPv4:     $addresses\\n\\nTraffic (real bytes only)\\nWi-Fi RX:       ${human(s.wifiRx)}\\nWi-Fi TX:       ${human(s.wifiTx)}\\nTunnel RX:      ${human(s.tunnelRx)}\\nTunnel TX:      ${human(s.tunnelTx)}\\nTUN RX:         ${human(s.vpnRx)}" + (s.lastError?.let { "\\n\\nLast error: $it" } ?: "")
+        val totalTraffic = s.wifiRx + s.wifiTx + s.tunnelRx + s.tunnelTx + s.vpnRx
+        val pulse = if (totalTraffic > lastRenderedTraffic) "● DATA MOVING" else "○ idle (no new bytes)"
+        lastRenderedTraffic = totalTraffic
+        status.text = "BRIXAR GATEWAY\\n\\nGateway:        ${s.gateway}\\nWi-Fi:          ${s.wifi}\\nSTA+AP support: $concurrency\\nClient sessions: ${s.client} (${s.activeClients} active)\\nData Tunnel:    ${s.dataTunnel}\\nControl:        ${s.control} (${s.controlLatencyMs} ms)\\nVPN/TUN:        ${s.vpn}\\nLocal Hotspot:  ${s.localHotspot}\\nProxy listener: 0.0.0.0:${s.proxyPort}\\nPhone IPv4:     $addresses\\n\\nPath monitor\\nClient → Wi-Fi → Gateway → Data Tunnel → Server\\n$ pulse\\n\\nTraffic (real bytes only)\\nWi-Fi RX:       ${human(s.wifiRx)}\\nWi-Fi TX:       ${human(s.wifiTx)}\\nTunnel RX:      ${human(s.tunnelRx)}\\nTunnel TX:      ${human(s.tunnelTx)}\\nTUN RX:         ${human(s.vpnRx)}" + (s.lastError?.let { "\\n\\nLast error: $it" } ?: "")
         events.text = GatewayController.eventLines().joinToString("\\n").ifBlank { "No events yet." }
     }
 
@@ -127,6 +132,13 @@ class MainActivity : Activity() {
     }
 
     private fun stopTunDiagnostic() { stopService(Intent(this, GatewayVpnService::class.java).setAction(GatewayVpnService.ACTION_STOP)); render() }
+
+    private fun runGatewaySelfTest() {
+        val host = serverHost.text.toString().trim()
+        val port = serverPort.text.toString().toIntOrNull()
+        if (host.isBlank() || port == null || port !in 1..65535) { toast("Enter a valid test-server host and data port"); return }
+        GatewaySelfTest.run(this, host, port) { result -> runOnUiThread { toast(result); render() } }
+    }
 
     private fun title(value: String, size: Int) = TextView(this).apply { text = value; textSize = size.toFloat(); setTextColor(Color.rgb(10, 55, 120)); setPadding(0, dp(12), 0, dp(6)) }
     private fun note(value: String) = TextView(this).apply { text = value; textSize = 13f; setTextColor(Color.DKGRAY); setPadding(0, dp(2), 0, dp(10)) }

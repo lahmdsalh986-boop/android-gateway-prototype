@@ -1,6 +1,6 @@
 # تقرير التحليل والتنفيذ — Android Gateway Prototype
 
-**الإصدار:** 0.1.1  
+**الإصدار:** 0.1.3  
 **التاريخ:** 25 سبتمبر 2026  
 **المؤلف:** Manus AI
 
@@ -22,6 +22,8 @@
 
 تحتوي واجهة Gateway الآن على زر **Start TUN diagnostic**. بعد موافقة VPN ينشئ `GatewayVpnService` واجهة TUN بعنوان `10.99.0.2/32` ومسارًا ضيقًا إلى `10.99.0.0/24`، ويقرأ IP packets التي يسلّمها Android إلى الواجهة ويعدّها في `TUN RX`. لا تُستخدم هذه النتيجة لإثبات أن حزم عميل Soft AP دخلت TUN؛ ذلك يبقى اختبارًا ميدانيًا مستقلًا وحالته `NOT VERIFIED`.
 
+يحتوي الإصدار 0.1.3 أيضًا على زر **Run real Gateway → Server 1 MiB test**. هذا الزر يفتح Data Tunnel فعليًا، يطلب 1 MiB من خادم الحمولة، يقرأ البايتات، يحسب SHA‑256، ويقارن قيمة الخادم. كما تقيس قناة التحكم زمن `PING/ACK` الحقيقي، ويظهر مؤشر `DATA MOVING` فقط عندما تتغير عدادات البايتات؛ لا يعتمد على مؤقت لعرض نشاط وهمي.
+
 ## B. Android APIs المستخدمة وتحليل القابلية
 
 | API أو آلية | استخدامها في النموذج | النتيجة والحد |
@@ -30,11 +32,11 @@
 | `ConnectivityManager` و`NetworkCapabilities` | قراءة الشبكة الصاعدة النشطة وقبول Wi‑Fi أو Ethernet فقط ورفض cellular. | يختار التطبيق socket مرتبطًا بالشبكة التي كشفها النظام؛ ينبغي اختبار فقدان الشبكة وتبديلها ميدانيًا. [2] |
 | `Network.getSocketFactory()` | فتح TCP Data Tunnel مرتبطًا بالشبكة الصاعدة بدلاً من ترك اختيار الشبكة غامضًا. | يوجّه **socket التطبيق** فقط؛ لا يفرض توجيهًا على جهاز العميل ولا يوفر اعتراضًا شفافًا. [3] |
 | sockets عادية و`ServerSocket` | مستمع CONNECT محلي، ونقل البايتات، والعدادات الفعلية. | يبرهن نقل حركة عميل التزم بضبط proxy؛ لا يشمل التطبيقات أو البروتوكولات التي تتجاهل proxy. |
-| `VpnService` | تم تحليله ولم يستخدم في 0.1. | ينشئ TUN لحزم توجهها Android إلى VPN الخاصة بالمستخدم/الملف الشخصي. لا توجد ضمانة API عامة بأن حركة عملاء tethering تدخل هذا الـTUN. [4] |
+| `VpnService` | يستخدمه الإصدار 0.1.3 في تشخيص TUN بموافقة المستخدم. | ينشئ TUN لحزم توجهها Android إلى VPN الخاصة بالمستخدم/الملف الشخصي. لا توجد ضمانة API عامة بأن حركة عملاء tethering تدخل هذا الـTUN. [4] |
 | `GatewayVpnService` | مكوّن تشخيصي فعلي في 0.1.1 ينشئ TUN بعد موافقة المستخدم ويقرأ الحزم التي تصل إليه. | يثبت قناة TUN نفسها فقط. المسار الضيق لا يلتقط تلقائيًا حركة عملاء Wi‑Fi البعيدين. |
 | `VpnService.Builder.addRoute()` و`protect()` | غير مستخدمين لأنهما لا يحققان شرط عميل Wi‑Fi. | `addRoute()` يختار وجهات VPN، و`protect()` يستثني socket التطبيق من دورة VPN؛ لا ينشئان hook لتوجيه عملاء hotspot. [4] |
 | `TetheringManager` | تم تحليله ولم يستخدم. | بدء tethering ومراقبته ليسا API عامة لتسليم packet stream للتطبيق. كما توجد قيود privileged أو special access وcarrier entitlement. [5] |
-| `NetworkRequest` | تم تحليله كتحسين لاحق ولم يستخدم في 0.1. | يمكن طلب Wi‑Fi صراحةً ثم ربط sockets بالـNetwork المرجع، لكنه لا يحل ingress من عميل hotspot. [2] [3] |
+| `NetworkRequest` | تم تحليله كتحسين لاحق ولم يستخدم في 0.1.3. | يمكن طلب Wi‑Fi صراحةً ثم ربط sockets بالـNetwork المرجع، لكنه لا يحل ingress من عميل hotspot. [2] [3] |
 
 يحتاج `LocalOnlyHotspot` في التطبيق المستهدف Android 13+ إلى `CHANGE_WIFI_STATE` و`NEARBY_WIFI_DEVICES` كإذن وقت التشغيل، ويحتاج مستمع foreground إلى `FOREGROUND_SERVICE` و`FOREGROUND_SERVICE_DATA_SYNC`. يستخدم التطبيق كذلك `INTERNET` و`ACCESS_NETWORK_STATE`. في إصدارات Android المستقبلية التي تطبق إذن الشبكة المحلية للتطبيقات المستهدفة الجديدة، يلزم تقييم `ACCESS_LOCAL_NETWORK` قبل اعتماد مستمع proxy محلي. [1] [6]
 

@@ -45,6 +45,8 @@ If testing LocalOnlyHotspot, tap **Start local hotspot** and join the displayed 
 
 For the separate VPN diagnostic, tap **Start TUN diagnostic** and accept Android's VPN consent dialog. The app installs only the narrow `10.99.0.0/24` test route and increments `TUN RX` only when Android delivers a packet to the TUN. This check must be recorded independently: a connected VPN icon or a non-zero TUN counter is not proof that tethered client packets enter the TUN. The intended result for an ordinary Android build may be **NOT VERIFIED** or **BLOCKED BY ANDROID** for hotspot-client traffic.
 
+The Gateway screen also contains **Run real Gateway → Server 1 MiB test**. Start the gateway first, then press this button. It opens a new real data-tunnel session, requests 1 MiB from the server payload service, reads the response, and compares SHA-256. A toast and event-log entry are produced from the actual result. The path monitor shows `DATA MOVING` only after a real counter changes. A control-channel latency value appears only after a real `PING/ACK` exchange.
+
 ## Execute the real bidirectional test
 
 On the client phone, enter the gateway IPv4 address, proxy port `8080`, and payload port `10080`. Tap **Run 10 MiB bidirectional test**. The client first requests a server-generated deterministic 10 MiB download, hashes it, then generates a deterministic 10 MiB upload and compares the test-server acknowledgment hash.

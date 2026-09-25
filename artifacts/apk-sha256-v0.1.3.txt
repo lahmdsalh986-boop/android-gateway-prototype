@@ -1,0 +1,2 @@
+141ca956ae7ef4f0049513d0f450c6b9512758b93414f33f0444ac00f398f21e  artifacts/gateway-debug.apk
+008831f18b6c16c5128131ae7b815ea196933232923d745eb0a415749197ca88  artifacts/gateway-test-client-debug.apk
