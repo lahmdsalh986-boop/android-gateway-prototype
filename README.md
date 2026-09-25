@@ -26,6 +26,8 @@ The two APKs are emitted under each module’s `build/outputs/apk/debug/` direct
 
 The Gateway screen includes **Start TUN diagnostic**. Android displays the normal VPN consent dialog. The diagnostic installs only `10.99.0.0/24`, counts packets actually delivered to the TUN, and reports `NOT VERIFIED` for tethered-client capture unless a physical-device test demonstrates otherwise. It is not presented as a transparent hotspot-client interceptor.
 
+The three-category capability boundary is documented in [`docs/CAPABILITY_MATRIX_AR.md`](docs/CAPABILITY_MATRIX_AR.md). The app itself displays Root, System privileges, VPN, Hotspot, Tethering, ARP-visible clients, and the separate transparent-routing result. It explicitly reports **Explicit Proxy** as the currently available ordinary-app path rather than conflating it with transparent routing.
+
 ## Security boundary
 
 The Python harness permits only `127.0.0.1`, `localhost`, or `::1` as its payload target. It is intended for a controlled LAN. Do not expose it to the Internet. The Android proxy is intentionally limited to HTTP CONNECT to make the test protocol precise; it is not a production Internet proxy.

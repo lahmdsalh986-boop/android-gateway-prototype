@@ -24,7 +24,7 @@ android {
         applicationId = "com.example.androidgateway"
         minSdk = 23
         targetSdk = 35
-        versionCode = 3
-        versionName = "0.1.3"
+        versionCode = 4
+        versionName = "0.1.4"
     }
 }

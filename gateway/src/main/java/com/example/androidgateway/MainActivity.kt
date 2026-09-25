@@ -20,6 +20,7 @@ class MainActivity : Activity() {
     private lateinit var proxyPort: EditText
     private lateinit var status: TextView
     private lateinit var events: TextView
+    private lateinit var capabilities: TextView
     private lateinit var startButton: Button
     private lateinit var hotspot: LocalHotspotController
     private var control: ControlChannel? = null
@@ -69,6 +70,10 @@ class MainActivity : Activity() {
         root.addView(title("Event log", 19))
         events = TextView(this).apply { textSize = 12f; typeface = android.graphics.Typeface.MONOSPACE; setTextColor(Color.DKGRAY) }
         root.addView(events)
+        root.addView(title("قدرات الجهاز", 19))
+        capabilities = TextView(this).apply { textSize = 13f; typeface = android.graphics.Typeface.MONOSPACE; setTextColor(Color.DKGRAY) }
+        root.addView(capabilities)
+        root.addView(Button(this).apply { text = "تحديث قدرات الجهاز والعملاء الحقيقيين"; setOnClickListener { render() } })
         root.addView(note("Client setup: connect to this phone’s Wi-Fi LAN or LocalOnlyHotspot, then use the shown gateway IPv4 address and proxy port in a proxy-aware client. Install Gateway Test Client for the 10 MiB bidirectional SHA-256 test."))
         return scroll
     }
@@ -97,6 +102,7 @@ class MainActivity : Activity() {
 
     private fun render() {
         val s = GatewayController.snapshot(this)
+        val device = DeviceCapabilityProbe.read(this)
         startButton.text = if (s.gateway == LinkState.STOPPED || s.gateway == LinkState.ERROR) "Start gateway" else "Stop gateway"
         val addresses = GatewayController.localIpv4Addresses().ifEmpty { listOf("No IPv4 address detected") }.joinToString(", ")
         val wifiManager = getSystemService(WifiManager::class.java)
@@ -104,8 +110,10 @@ class MainActivity : Activity() {
         val totalTraffic = s.wifiRx + s.wifiTx + s.tunnelRx + s.tunnelTx + s.vpnRx
         val pulse = if (totalTraffic > lastRenderedTraffic) "● DATA MOVING" else "○ idle (no new bytes)"
         lastRenderedTraffic = totalTraffic
-        status.text = "BRIXAR GATEWAY\\n\\nGateway:        ${s.gateway}\\nWi-Fi:          ${s.wifi}\\nSTA+AP support: $concurrency\\nClient sessions: ${s.client} (${s.activeClients} active)\\nData Tunnel:    ${s.dataTunnel}\\nControl:        ${s.control} (${s.controlLatencyMs} ms)\\nVPN/TUN:        ${s.vpn}\\nLocal Hotspot:  ${s.localHotspot}\\nProxy listener: 0.0.0.0:${s.proxyPort}\\nPhone IPv4:     $addresses\\n\\nPath monitor\\nClient → Wi-Fi → Gateway → Data Tunnel → Server\\n$ pulse\\n\\nTraffic (real bytes only)\\nWi-Fi RX:       ${human(s.wifiRx)}\\nWi-Fi TX:       ${human(s.wifiTx)}\\nTunnel RX:      ${human(s.tunnelRx)}\\nTunnel TX:      ${human(s.tunnelTx)}\\nTUN RX:         ${human(s.vpnRx)}" + (s.lastError?.let { "\\n\\nLast error: $it" } ?: "")
+        val arp = if (device.arpClients.isEmpty()) "لا يوجد عميل ظاهر في /proc/net/arp" else device.arpClients.joinToString("\\n")
+        status.text = "BRIXAR GATEWAY\\n\\nGateway:        ${s.gateway}\\nWi-Fi:          ${s.wifi}\\nSTA+AP support: $concurrency\\nClient sessions: ${s.client} (${s.activeClients} active)\\nARP clients:    ${device.arpClients.size}\\nData Tunnel:    ${s.dataTunnel}\\nControl:        ${s.control} (${s.controlLatencyMs} ms)\\nVPN/TUN:        ${s.vpn}\\nLocal Hotspot:  ${s.localHotspot}\\nProxy listener: 0.0.0.0:${s.proxyPort}\\nPhone IPv4:     $addresses\\n\\nPath monitor\\nClient → Wi-Fi → Gateway → Data Tunnel → Server\\n$ pulse\\n\\nTraffic (real bytes only)\\nWi-Fi RX:       ${human(s.wifiRx)}\\nWi-Fi TX:       ${human(s.wifiTx)}\\nTunnel RX:      ${human(s.tunnelRx)}\\nTunnel TX:      ${human(s.tunnelTx)}\\nTUN RX:         ${human(s.vpnRx)}\\n\\nTransparent routing: غير متاح لتطبيق Android عادي\\nالمسار المتاح حاليًا: Explicit Proxy" + (s.lastError?.let { "\\n\\nLast error: $it" } ?: "")
         events.text = GatewayController.eventLines().joinToString("\\n").ifBlank { "No events yet." }
+        capabilities.text = "Android: ${device.android}\\nRoot: ${device.root}\\nSystem privileges: ${device.systemPrivileges}\\nVPN: ${device.vpn}\\nHotspot: ${device.hotspot}\\nTethering: ${device.tethering}\\nالتوجيه الشفاف لعملاء Hotspot: ${device.transparentClientRouting}\\n\\nعملاء ظاهرون فعليًا من ARP:\\n$arp\\n\\nأسباب وقيود:\\n${device.reasons.joinToString("\\n") { "- $it" }}"
     }
 
     private fun requestNeededPermissions() {
