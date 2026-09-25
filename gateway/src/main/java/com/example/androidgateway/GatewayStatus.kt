@@ -16,10 +16,12 @@ data class GatewaySnapshot(
     val client: LinkState = LinkState.STOPPED,
     val dataTunnel: LinkState = LinkState.STOPPED,
     val control: LinkState = LinkState.STOPPED,
+    val vpn: LinkState = LinkState.STOPPED,
     val wifiRx: Long = 0,
     val wifiTx: Long = 0,
     val tunnelRx: Long = 0,
     val tunnelTx: Long = 0,
+    val vpnRx: Long = 0,
     val activeClients: Int = 0,
     val proxyPort: Int = 8080,
     val localHotspot: String = "OFF",
@@ -32,6 +34,7 @@ object GatewayController {
     private val wifiTx = AtomicLong(0)
     private val tunnelRx = AtomicLong(0)
     private val tunnelTx = AtomicLong(0)
+    private val vpnRx = AtomicLong(0)
     private val listeners = CopyOnWriteArrayList<(GatewaySnapshot) -> Unit>()
     private val events = CopyOnWriteArrayList<String>()
 
@@ -39,6 +42,7 @@ object GatewayController {
     @Volatile private var client = LinkState.STOPPED
     @Volatile private var tunnel = LinkState.STOPPED
     @Volatile private var control = LinkState.STOPPED
+    @Volatile private var vpn = LinkState.STOPPED
     @Volatile private var activeClients = 0
     @Volatile private var activeTunnels = 0
     @Volatile private var proxyPort = 8080
@@ -46,16 +50,16 @@ object GatewayController {
     @Volatile private var error: String? = null
 
     fun reset(port: Int) {
-        wifiRx.set(0); wifiTx.set(0); tunnelRx.set(0); tunnelTx.set(0)
+        wifiRx.set(0); wifiTx.set(0); tunnelRx.set(0); tunnelTx.set(0); vpnRx.set(0)
         gateway = LinkState.STARTING; client = LinkState.STOPPED; tunnel = LinkState.READY
-        control = LinkState.STOPPED; activeClients = 0; activeTunnels = 0; proxyPort = port; error = null
+        control = LinkState.STOPPED; vpn = LinkState.STOPPED; activeClients = 0; activeTunnels = 0; proxyPort = port; error = null
         event("Gateway service is starting on TCP port $port")
         publish()
     }
 
     fun stop() {
         gateway = LinkState.STOPPED; client = LinkState.STOPPED; tunnel = LinkState.STOPPED
-        control = LinkState.STOPPED; activeClients = 0; activeTunnels = 0
+        control = LinkState.STOPPED; vpn = LinkState.STOPPED; activeClients = 0; activeTunnels = 0
         event("Gateway service stopped")
         publish()
     }
@@ -92,6 +96,12 @@ object GatewayController {
         publish()
     }
 
+    fun setVpn(state: LinkState, message: String? = null) {
+        vpn = state
+        if (message != null) event(message)
+        publish()
+    }
+
     fun clientOpened(peer: String) {
         activeClients += 1
         client = LinkState.CONNECTED
@@ -110,6 +120,7 @@ object GatewayController {
     fun addWifiTx(bytes: Long) { wifiTx.addAndGet(bytes); publish() }
     fun addTunnelRx(bytes: Long) { tunnelRx.addAndGet(bytes); publish() }
     fun addTunnelTx(bytes: Long) { tunnelTx.addAndGet(bytes); publish() }
+    fun addVpnRx(bytes: Long) { vpnRx.addAndGet(bytes); publish() }
 
     fun setLocalHotspot(value: String) { localHotspot = value; event("Local hotspot: $value"); publish() }
     fun setError(message: String) { error = message; gateway = LinkState.ERROR; event("ERROR: $message"); publish() }
@@ -124,10 +135,12 @@ object GatewayController {
         client = client,
         dataTunnel = tunnel,
         control = control,
+        vpn = vpn,
         wifiRx = wifiRx.get(),
         wifiTx = wifiTx.get(),
         tunnelRx = tunnelRx.get(),
         tunnelTx = tunnelTx.get(),
+        vpnRx = vpnRx.get(),
         activeClients = activeClients,
         proxyPort = proxyPort,
         localHotspot = localHotspot,
@@ -141,8 +154,8 @@ object GatewayController {
     private fun publish() { listeners.forEach { it(snapshotOrNull()) } }
     private fun snapshotOrNull(): GatewaySnapshot = GatewaySnapshot(
         gateway = gateway, wifi = "Refresh screen for network state", client = client, dataTunnel = tunnel,
-        control = control, wifiRx = wifiRx.get(), wifiTx = wifiTx.get(), tunnelRx = tunnelRx.get(),
-        tunnelTx = tunnelTx.get(), activeClients = activeClients, proxyPort = proxyPort, localHotspot = localHotspot,
+        control = control, vpn = vpn, wifiRx = wifiRx.get(), wifiTx = wifiTx.get(), tunnelRx = tunnelRx.get(),
+        tunnelTx = tunnelTx.get(), vpnRx = vpnRx.get(), activeClients = activeClients, proxyPort = proxyPort, localHotspot = localHotspot,
         lastError = error
     )
 

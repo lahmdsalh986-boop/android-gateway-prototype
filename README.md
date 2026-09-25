@@ -8,7 +8,7 @@ It does **not** claim that a normal third-party Android app can transparently in
 
 | Module | Role |
 | --- | --- |
-| `gateway` | Gateway Android application. It runs a foreground HTTP CONNECT listener, opens an app-owned `AGP/1` TCP data tunnel over Wi-Fi/Ethernet only, manages a LocalOnlyHotspot request, and displays real byte counters and events. |
+| `gateway` | Gateway Android application. It runs a foreground HTTP CONNECT listener, opens an app-owned `AGP/1` TCP data tunnel over Wi-Fi/Ethernet only, manages a LocalOnlyHotspot request, provides a user-consented narrow `VpnService`/TUN diagnostic route, checks STA+AP capability, and displays real byte counters and events. |
 | `client-test` | Android test client. It sends and receives deterministic 10 MiB payloads through the explicit proxy and displays endpoint SHA-256 comparisons. |
 | `server` | Restricted Python laboratory harness. It supports independent data and control listeners and a loopback-only payload service. |
 | `docs` | Hardware procedure and the final capability report. |
@@ -23,6 +23,8 @@ export ANDROID_SDK_ROOT=/path/to/android-sdk
 ```
 
 The two APKs are emitted under each module’s `build/outputs/apk/debug/` directory. For the exact physical-device procedure, open [`docs/TEST_PROCEDURE.md`](docs/TEST_PROCEDURE.md).
+
+The Gateway screen includes **Start TUN diagnostic**. Android displays the normal VPN consent dialog. The diagnostic installs only `10.99.0.0/24`, counts packets actually delivered to the TUN, and reports `NOT VERIFIED` for tethered-client capture unless a physical-device test demonstrates otherwise. It is not presented as a transparent hotspot-client interceptor.
 
 ## Security boundary
 

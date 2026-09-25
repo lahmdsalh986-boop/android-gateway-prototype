@@ -43,6 +43,8 @@ On the gateway phone, ensure the active upstream is **Wi-Fi or Ethernet**, not c
 
 If testing LocalOnlyHotspot, tap **Start local hotspot** and join the displayed SSID with the client phone. This action provides the Wi-Fi link only. It does not make the application a transparent router and it does not guarantee that a device supports concurrent hotspot plus Wi-Fi upstream. If the hotspot cannot coexist with the upstream, use a common Wi-Fi LAN for the initial explicit-proxy proof and record the device limitation.
 
+For the separate VPN diagnostic, tap **Start TUN diagnostic** and accept Android's VPN consent dialog. The app installs only the narrow `10.99.0.0/24` test route and increments `TUN RX` only when Android delivers a packet to the TUN. This check must be recorded independently: a connected VPN icon or a non-zero TUN counter is not proof that tethered client packets enter the TUN. The intended result for an ordinary Android build may be **NOT VERIFIED** or **BLOCKED BY ANDROID** for hotspot-client traffic.
+
 ## Execute the real bidirectional test
 
 On the client phone, enter the gateway IPv4 address, proxy port `8080`, and payload port `10080`. Tap **Run 10 MiB bidirectional test**. The client first requests a server-generated deterministic 10 MiB download, hashes it, then generates a deterministic 10 MiB upload and compares the test-server acknowledgment hash.

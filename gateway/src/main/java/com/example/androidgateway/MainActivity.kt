@@ -7,6 +7,8 @@ import android.content.pm.PackageManager
 import android.graphics.Color
 import android.os.Bundle
 import android.provider.Settings
+import android.net.VpnService
+import android.net.wifi.WifiManager
 import android.view.Gravity
 import android.view.View
 import android.widget.*
@@ -55,6 +57,10 @@ class MainActivity : Activity() {
         controlRow.addView(Button(this).apply { text = "Start control"; setOnClickListener { startControl() } }, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
         controlRow.addView(Button(this).apply { text = "Stop hotspot"; setOnClickListener { hotspot.stop(); render() } }, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
         root.addView(controlRow)
+        val vpnRow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+        vpnRow.addView(Button(this).apply { text = "Start TUN diagnostic"; setOnClickListener { startTunDiagnostic() } }, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+        vpnRow.addView(Button(this).apply { text = "Stop TUN"; setOnClickListener { stopTunDiagnostic() } }, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+        root.addView(vpnRow)
         root.addView(title("Gateway Status", 19))
         status = TextView(this).apply { setTextColor(Color.rgb(28, 28, 28)); textSize = 14f; setPadding(0, dp(8), 0, dp(8)); typeface = android.graphics.Typeface.MONOSPACE }
         root.addView(status)
@@ -90,16 +96,36 @@ class MainActivity : Activity() {
         val s = GatewayController.snapshot(this)
         startButton.text = if (s.gateway == LinkState.STOPPED || s.gateway == LinkState.ERROR) "Start gateway" else "Stop gateway"
         val addresses = GatewayController.localIpv4Addresses().ifEmpty { listOf("No IPv4 address detected") }.joinToString(", ")
-        status.text = "Gateway:        ${s.gateway}\\nWi-Fi:          ${s.wifi}\\nClient:         ${s.client} (${s.activeClients} active)\\nData Tunnel:    ${s.dataTunnel}\\nControl:        ${s.control}\\nLocal Hotspot:  ${s.localHotspot}\\nProxy listener: 0.0.0.0:${s.proxyPort}\\nPhone IPv4:     $addresses\\n\\nTraffic (real bytes only)\\nWi-Fi RX:       ${human(s.wifiRx)}\\nWi-Fi TX:       ${human(s.wifiTx)}\\nTunnel RX:      ${human(s.tunnelRx)}\\nTunnel TX:      ${human(s.tunnelTx)}" + (s.lastError?.let { "\\n\\nLast error: $it" } ?: "")
+        val wifiManager = getSystemService(WifiManager::class.java)
+        val concurrency = if (android.os.Build.VERSION.SDK_INT >= 30) wifiManager?.isStaApConcurrencySupported?.toString() ?: "UNKNOWN" else "API<30"
+        status.text = "Gateway:        ${s.gateway}\\nWi-Fi:          ${s.wifi}\\nSTA+AP support: $concurrency\\nClient:         ${s.client} (${s.activeClients} active)\\nData Tunnel:    ${s.dataTunnel}\\nControl:        ${s.control}\\nVPN/TUN:        ${s.vpn}\\nLocal Hotspot:  ${s.localHotspot}\\nProxy listener: 0.0.0.0:${s.proxyPort}\\nPhone IPv4:     $addresses\\n\\nTraffic (real bytes only)\\nWi-Fi RX:       ${human(s.wifiRx)}\\nWi-Fi TX:       ${human(s.wifiTx)}\\nTunnel RX:      ${human(s.tunnelRx)}\\nTunnel TX:      ${human(s.tunnelTx)}\\nTUN RX:         ${human(s.vpnRx)}" + (s.lastError?.let { "\\n\\nLast error: $it" } ?: "")
         events.text = GatewayController.eventLines().joinToString("\\n").ifBlank { "No events yet." }
     }
 
     private fun requestNeededPermissions() {
         val needed = mutableListOf<String>()
         if (android.os.Build.VERSION.SDK_INT >= 33 && checkSelfPermission(Manifest.permission.NEARBY_WIFI_DEVICES) != PackageManager.PERMISSION_GRANTED) needed += Manifest.permission.NEARBY_WIFI_DEVICES
+        if (android.os.Build.VERSION.SDK_INT <= 32) {
+            if (checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) needed += Manifest.permission.ACCESS_FINE_LOCATION
+            if (checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) needed += Manifest.permission.ACCESS_COARSE_LOCATION
+        }
         if (android.os.Build.VERSION.SDK_INT >= 33 && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) needed += Manifest.permission.POST_NOTIFICATIONS
         if (needed.isNotEmpty()) requestPermissions(needed.toTypedArray(), 200)
     }
+
+    private fun startTunDiagnostic() {
+        val intent = VpnService.prepare(this)
+        if (intent != null) { startActivityForResult(intent, 301); return }
+        startService(Intent(this, GatewayVpnService::class.java)); render()
+    }
+
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode == 301 && resultCode == RESULT_OK) startService(Intent(this, GatewayVpnService::class.java))
+        render()
+    }
+
+    private fun stopTunDiagnostic() { stopService(Intent(this, GatewayVpnService::class.java).setAction(GatewayVpnService.ACTION_STOP)); render() }
 
     private fun title(value: String, size: Int) = TextView(this).apply { text = value; textSize = size.toFloat(); setTextColor(Color.rgb(10, 55, 120)); setPadding(0, dp(12), 0, dp(6)) }
     private fun note(value: String) = TextView(this).apply { text = value; textSize = 13f; setTextColor(Color.DKGRAY); setPadding(0, dp(2), 0, dp(10)) }

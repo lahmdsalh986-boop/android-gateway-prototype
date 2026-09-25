@@ -16,6 +16,10 @@ android {
         jvmTarget = "17"
     }
 
+    lint {
+        disable += "CoarseFineLocation"
+    }
+
     defaultConfig {
         applicationId = "com.example.androidgateway"
         minSdk = 29
