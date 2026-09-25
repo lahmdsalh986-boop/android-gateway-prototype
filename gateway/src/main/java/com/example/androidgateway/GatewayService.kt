@@ -35,6 +35,7 @@ class GatewayService : Service() {
     private fun stopGateway() { proxy?.close(); proxy = null; GatewayController.stop() }
 
     private fun createChannel() {
+        if (android.os.Build.VERSION.SDK_INT < 26) return
         val manager = getSystemService(NotificationManager::class.java)
         manager.createNotificationChannel(NotificationChannel(CHANNEL_ID, "Gateway service", NotificationManager.IMPORTANCE_LOW))
     }

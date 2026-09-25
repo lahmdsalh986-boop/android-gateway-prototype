@@ -9,7 +9,12 @@ object GatewayNotification {
     fun create(context: Context, text: String): Notification {
         val intent = Intent(context, MainActivity::class.java)
         val pending = PendingIntent.getActivity(context, 0, intent, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
-        return Notification.Builder(context, GatewayService.CHANNEL_ID)
+        val builder = if (android.os.Build.VERSION.SDK_INT >= 26) {
+            Notification.Builder(context, GatewayService.CHANNEL_ID)
+        } else {
+            Notification.Builder(context)
+        }
+        return builder
             .setContentTitle("Android Gateway Prototype")
             .setContentText(text)
             .setSmallIcon(android.R.drawable.stat_sys_upload)

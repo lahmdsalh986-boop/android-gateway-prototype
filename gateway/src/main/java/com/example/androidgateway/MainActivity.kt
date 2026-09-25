@@ -83,7 +83,8 @@ class MainActivity : Activity() {
         val intent = Intent(this, GatewayService::class.java).apply {
             putExtra(GatewayService.EXTRA_SERVER_HOST, host); putExtra(GatewayService.EXTRA_SERVER_PORT, dataPort); putExtra(GatewayService.EXTRA_PROXY_PORT, localPort)
         }
-        startForegroundService(intent); render()
+        if (android.os.Build.VERSION.SDK_INT >= 26) startForegroundService(intent) else startService(intent)
+        render()
     }
 
     private fun startControl() {

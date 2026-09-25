@@ -22,9 +22,9 @@ android {
 
     defaultConfig {
         applicationId = "com.example.androidgateway"
-        minSdk = 29
+        minSdk = 23
         targetSdk = 35
-        versionCode = 1
-        versionName = "0.1.0"
+        versionCode = 2
+        versionName = "0.1.2"
     }
 }
